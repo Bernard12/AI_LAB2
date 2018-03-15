@@ -1,0 +1,200 @@
+Загрузка необходимых пакетов
+
+```{r libraries, message=FALSE}
+require(tidyverse)
+require(Quandl)
+```
+
+# №1
+
+Загрузим необходимые данные
+```{r}
+d <- as_tibble(Quandl("WIKI/GOOGL"))
+```
+
+Построим простой график зависмости Close от Open
+```{r}
+ggplot(d,aes(x = Open, y = Close,color = Open))+
+    geom_point(alpha = 0.5)+
+    scale_colour_gradient(low = "orange", high = "red")
+```
+
+Из этого графика можно заметить, что параметр Close сильно зависит от Open
+Построим линейную регрессию и посмотрим на полученные результаты
+```{r}
+fit <- lm( Close ~ Open ,data = d)
+summary(fit)
+```
+Видно что Close и Open соотносятся почти как 1 к 1
+На графике это будет ещё более заметно
+```{r}
+ggplot(d,aes(x = Open, y = Close,color = Open))+
+    geom_point(alpha = 0.5)+
+    scale_colour_gradient(low = "orange", high = "red")+
+    geom_smooth(method = "lm", formula = y ~ x)
+```
+
+Полученная модель получилась довольно слабой, т.к. очевидно что цены на бирже редко когда сильно изменяются
+Того можно построить график цены во время закрытия торгов
+```{r}
+cl <- d %>%
+    select(Close) %>%
+    arrange(Close)
+cl$days <- c(1:nrow(cl))
+ggplot(cl,aes(x = days, y = Close, color = Close))+
+    geom_point(alpha = 0.2)+
+    scale_color_gradient(low = "orange", high = "red")
+```
+
+По этим даннм так же можно построить линейную регрессию
+Будем считать что days - число дней с момента когда акции впервые повились на торгах
+
+```{r}
+fit <- lm(Close ~ days,data = cl)
+summary(fit)
+ggplot(cl,aes(x = days, y = Close, color = Close))+
+    geom_point(alpha = 0.2)+
+    scale_color_gradient(low = "orange", high = "red")+
+    geom_smooth(method = "lm", formula = y ~ x)
+```
+
+В целом эта модель будет по-полезнее, т.к. она может предсказать цену на будущее, в то время как самая первая
+модель не имела особого смысла, т.к. показывала что цена открытия примерно равна цене закрытия.
+
+# №2
+В папке с скриптом на R находится папка Task с дополнительными датасетами. Загрузим второй датасет и
+посмотрим график зависмости
+
+```{r,message = FALSE}
+d <- read_csv("./Task/challenge_dataset.txt",col_names = F)
+```
+
+```{r}
+head(d, n = 5)
+```
+
+```{r}
+ggplot(d,aes(X1,X2, color = X1))+
+    geom_point()+
+    scale_color_gradient(low = "#0a5fd6",high = "#a900f2")
+```
+
+Для этих данных построим простую линейную регрессию x2 от x1
+
+```{r}
+fit <- lm(X2 ~ X1, data = d)
+summary(fit)
+ggplot(d,aes(X1,X2, color = X1))+
+    geom_point()+
+    scale_color_gradient(low = "#0a5fd6",high = "#a900f2")+
+    geom_smooth(method = lm,formula = y ~ x)
+```
+
+Полученная модель может примерно хорошо данные для которых x1 > 10, но в отрезке от 5 до 10 получился слишком большой 
+разброс.
+Т.к. зависимость очень x2 от x2 напоминает график функции корня и логарифма, построим регрессию для этих двух 
+преобразований
+
+```{r}
+fit <- lm(X2 ~ sqrt(X1), data = d)
+summary(fit)
+ggplot(d,aes(X1,X2, color = X1))+
+    geom_point()+
+    scale_color_gradient(low = "#0a5fd6",high = "#a900f2")+
+    geom_smooth(method = lm,formula = y ~ sqrt(x))
+```
+```{r}
+fit <- lm(X2 ~ log(X1), data = d)
+summary(fit)
+ggplot(d,aes(X1,X2, color = X1))+
+    geom_point()+
+    scale_color_gradient(low = "#0a5fd6",high = "#a900f2")+
+    geom_smooth(method = lm, formula = y ~ log(x))
+```
+
+Но все равно эти модели не слишком хорошо описывают данные. Вот так для примера будет строиться модель(не регрессия)
+для этих данных по умолчанию
+
+```{r}
+ggplot(d,aes(X1,X2, color = X1))+
+    geom_point()+
+    scale_color_gradient(low = "#0a5fd6",high = "#a900f2")+
+    geom_smooth()
+```
+
+У этой модели большие доверительные интервалы и покрывает она данные лучше предыдущих.
+
+# №3
+
+```{r, message=FALSE}
+d <- read_csv("./Task/global_co2.csv")
+```
+
+Попытаемся построить регрессию от поля "Solid Fuel" для "Per Capita"
+```{r}
+fit <- lm(d$'Per Capita' ~ d$'Solid Fuel',data = d)
+summary(fit)
+ggplot(d,aes(x = d$'Solid Fuel', y = d$'Per Capita', color = d$'Solid Fuel'))+
+    geom_point()+
+    labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
+    scale_color_gradient(low = "#570777", high = "#c60590")+
+    geom_smooth(method = lm,formula = y ~ x)
+```
+
+Но в этой модели есть много(200) пропущенных значений "Per Capita". Из простых логических соображений
+поле Per Capita не может быть отрицательным, так что можно попробовать заменить все неизвестные значение на 0
+```{r}
+newData <- d  %>%
+    mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),0,.))
+fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
+summary(fit)
+ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
+    geom_point()+
+    labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
+    scale_color_gradient(low = "#570777", high = "#c60590")+
+    geom_smooth(method = lm,formula = y ~ x)
+```
+
+Получилось какая то ужасная кривая, которая очень плохо, теперь попробуем заменять на средние значение от 
+известных величин
+
+```{r}
+newData <- d  %>%
+    mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),mean(.,na.rm = T),.))
+fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
+summary(fit)
+ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
+    geom_point()+
+    labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
+    scale_color_gradient(low = "#570777", high = "#c60590")+
+    geom_smooth(method = lm,formula = y ~ x)
+```
+
+Можно вместо неизвестных значений выставлять значения, который точно не могут подходить,например, -1
+
+```{r}
+newData <- d  %>%
+    mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),-1,.))
+fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
+summary(fit)
+ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
+    geom_point()+
+    labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
+    scale_color_gradient(low = "#570777", high = "#c60590")+
+    geom_smooth(method = lm,formula = y ~ x)
+```
+
+Полученные модели с заменой на какое-нибудь значение получаются не такие уж и эффективные. Но в целом можно 
+начать перебирать значения и выбрать наиболее удобное(почему бы и не 0.5?)
+
+```{r}
+newData <- d  %>%
+    mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),0.5,.))
+fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
+summary(fit)
+ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
+    geom_point()+
+    labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
+    scale_color_gradient(low = "#570777", high = "#c60590")+
+    geom_smooth(method = lm,formula = y ~ x)
+```
