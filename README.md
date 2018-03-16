@@ -10,7 +10,7 @@
 
     d <- as_tibble(Quandl("WIKI/GOOGL"))
 
-Построим простой график зависмости Close от Open
+Построим простую зависимость Close от Open
 
     ggplot(d,aes(x = Open, y = Close,color = Open))+
         geom_point(alpha = 0.5)+
@@ -18,7 +18,7 @@
 
 ![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-2-1.png)
 
-Из этого графика можно заметить, что параметр Close сильно зависит от
+Из этого графика можно заметить, что параметр Close сильно коррелирует с
 Open Построим линейную регрессию и посмотрим на полученные результаты
 
     fit <- lm( Close ~ Open ,data = d)
@@ -30,20 +30,20 @@ Open Построим линейную регрессию и посмотрим 
     ## 
     ## Residuals:
     ##     Min      1Q  Median      3Q     Max 
-    ## -60.229  -3.890   0.122   4.412  50.939 
+    ## -60.230  -3.890   0.127   4.409  50.937 
     ## 
     ## Coefficients:
-    ##             Estimate Std. Error  t value Pr(>|t|)    
-    ## (Intercept) 0.173256   0.380095    0.456    0.649    
-    ## Open        0.999359   0.000597 1673.959   <2e-16 ***
+    ##              Estimate Std. Error  t value Pr(>|t|)    
+    ## (Intercept) 0.1706919  0.3798327    0.449    0.653    
+    ## Open        0.9993642  0.0005964 1675.679   <2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 7.877 on 3413 degrees of freedom
+    ## Residual standard error: 7.876 on 3414 degrees of freedom
     ## Multiple R-squared:  0.9988, Adjusted R-squared:  0.9988 
-    ## F-statistic: 2.802e+06 on 1 and 3413 DF,  p-value: < 2.2e-16
+    ## F-statistic: 2.808e+06 on 1 and 3414 DF,  p-value: < 2.2e-16
 
-Видно что Close и Open соотносятся почти как 1 к 1 На графике это будет
+Видно что Close и Open соотносятся почти как 1 к 1. На графике это будет
 ещё более заметно
 
     ggplot(d,aes(x = Open, y = Close,color = Open))+
@@ -55,7 +55,7 @@ Open Построим линейную регрессию и посмотрим 
 
 Полученная модель получилась довольно слабой, т.к. очевидно что цены на
 бирже редко когда сильно изменяются Того можно построить график цены во
-время закрытия торгов
+время закрытия торгову
 
     cl <- d %>%
         select(Close) %>%
@@ -67,7 +67,7 @@ Open Построим линейную регрессию и посмотрим 
 
 ![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-5-1.png)
 
-По этим даннм так же можно построить линейную регрессию Будем считать
+По этим даннм так же можно построить линейную регрессию. Будем считать
 что days - число дней с момента когда акции впервые повились на торгах
 
     fit <- lm(Close ~ days,data = cl)
@@ -78,19 +78,19 @@ Open Построим линейную регрессию и посмотрим 
     ## lm(formula = Close ~ days, data = cl)
     ## 
     ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -118.59  -50.62   -4.21   41.53  248.54 
+    ##      Min       1Q   Median       3Q      Max 
+    ## -118.483  -50.729   -4.346   41.583  248.113 
     ## 
     ## Coefficients:
     ##              Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept) 2.183e+02  2.077e+00   105.1   <2e-16 ***
-    ## days        2.206e-01  1.053e-03   209.5   <2e-16 ***
+    ## (Intercept) 2.182e+02  2.078e+00   105.0   <2e-16 ***
+    ## days        2.207e-01  1.054e-03   209.5   <2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 60.66 on 3413 degrees of freedom
-    ## Multiple R-squared:  0.9279, Adjusted R-squared:  0.9278 
-    ## F-statistic: 4.39e+04 on 1 and 3413 DF,  p-value: < 2.2e-16
+    ## Residual standard error: 60.73 on 3414 degrees of freedom
+    ## Multiple R-squared:  0.9278, Adjusted R-squared:  0.9278 
+    ## F-statistic: 4.388e+04 on 1 and 3414 DF,  p-value: < 2.2e-16
 
     ggplot(cl,aes(x = days, y = Close, color = Close))+
         geom_point(alpha = 0.2)+
@@ -106,7 +106,7 @@ Open Построим линейную регрессию и посмотрим 
 №2
 ==
 
-В папке с скриптом на R находится папка Task с дополнительными
+В папке со скриптом на R находится папка Task с дополнительными
 датасетами. Загрузим второй датасет и посмотрим график зависмости
 
     d <- read_csv("./Task/challenge_dataset.txt",col_names = F)
@@ -159,10 +159,11 @@ Open Построим линейную регрессию и посмотрим 
 
 ![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-10-1.png)
 
-Полученная модель может примерно хорошо данные для которых x1 &gt; 10,
-но в отрезке от 5 до 10 получился слишком большой разброс. Т.к.
-зависимость очень x2 от x2 напоминает график функции корня и логарифма,
-построим регрессию для этих двух преобразований
+Полученная модель может хорошо предсказать данные для которых x1 &gt;
+10, но в отрезке от 5 до 10 получился слишком большой разброс.
+
+Т.к. зависимость очень x2 от x2 напоминает график функции корня и
+логарифма, построим регрессию для этих двух преобразований
 
     fit <- lm(X2 ~ sqrt(X1), data = d)
     summary(fit)
@@ -222,9 +223,9 @@ Open Построим линейную регрессию и посмотрим 
 
 ![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-12-1.png)
 
-Но все равно эти модели не слишком хорошо описывают данные. Вот так для
-примера будет строиться модель(не регрессия) для этих данных по
-умолчанию
+Но все равно эти модели не очень хорошо описывают данные, можно и
+получше. Вот так для примера будет строиться модель(не регрессия) для
+этих данных по умолчанию(функция loess - LOcal regrESSion)
 
     ggplot(d,aes(X1,X2, color = X1))+
         geom_point()+
