@@ -7,63 +7,101 @@ require(Quandl)
 
 # №1
 
-Загрузим необходимые данные
+Загрузка данных
+
 ```{r}
 d <- as_tibble(Quandl("WIKI/GOOGL"))
+d <- d %>% arrange(Close)
 ```
 
-Построим простую зависимость Close от Open
+Регрессия для Close от всех возможных параметров(возьмем первые 75% записей)
+
 ```{r}
-ggplot(d,aes(x = Open, y = Close,color = Open))+
-    geom_point(alpha = 0.5)+
-    scale_colour_gradient(low = "orange", high = "red")
+trainData <- d %>%
+    select(1:8) %>%
+    slice(1:(9*nrow(.) %/% 10))
+
+testData <-  d %>%
+    select(1:8) %>%
+    slice(((9*nrow(.) %/% 10) + 1):nrow(.))
 ```
 
-Из этого графика можно заметить, что параметр Close сильно коррелирует с Open
-Построим линейную регрессию и посмотрим на полученные результаты
-
 ```{r}
-fit <- lm( Close ~ Open ,data = d)
+fit <- lm(Close ~ . ,data = trainData)
 summary(fit)
 ```
 
-Видно что Close и Open соотносятся почти как 1 к 1. 
-На графике это будет ещё более заметно
+Для параметра Close статистически значимо влияют все параметры кроме Volume, так что можно убрать его
 
 ```{r}
-ggplot(d,aes(x = Open, y = Close,color = Open))+
-    geom_point(alpha = 0.5)+
-    scale_colour_gradient(low = "orange", high = "red")+
-    geom_smooth(method = "lm", formula = y ~ x)
-```
-
-Полученная модель получилась довольно слабой, т.к. очевидно что цены на бирже редко когда сильно изменяются
-Того можно построить график цены во время закрытия торгову
-
-```{r}
-cl <- d %>%
-    select(Close) %>%
-    arrange(Close)
-cl$days <- c(1:nrow(cl))
-ggplot(cl,aes(x = days, y = Close, color = Close))+
-    geom_point(alpha = 0.2)+
-    scale_color_gradient(low = "orange", high = "red")
-```
-
-По этим даннм так же можно построить линейную регрессию. 
-Будем считать что days - число дней с момента когда акции впервые повились на торгах
-
-```{r}
-fit <- lm(Close ~ days,data = cl)
+fit <- lm(Close ~ . - Volume,data = trainData)
 summary(fit)
-ggplot(cl,aes(x = days, y = Close, color = Close))+
-    geom_point(alpha = 0.2)+
-    scale_color_gradient(low = "orange", high = "red")+
-    geom_smooth(method = "lm", formula = y ~ x)
 ```
 
-В целом эта модель будет по-полезнее, т.к. она может предсказать цену на будущее, в то время как самая первая
-модель не имела особого смысла, т.к. показывала что цена открытия примерно равна цене закрытия.
+Без Volume не влияет параметр Date
+
+```{r}
+fit <- lm(Close ~ . - Volume - Date,data = trainData)
+summary(fit)
+```
+
+Получилась некоторая модель в которой каждый параметр влияет на Close
+
+```{r}
+predicted <- predict(fit,newdata = testData)
+predicted <- as_tibble(predicted)
+predicted$pos <- 1:nrow(predicted)
+testData$pos <- 1:nrow(testData)
+
+ggplot(predicted,aes(x = pos, y = value))+
+    geom_line(color = "red")
+
+ggplot(testData,aes(x = pos, y = Close))+
+    geom_line(color = "blue")
+
+ggplot()+
+    geom_line(data = predicted,aes(x = pos, y = value),color = "red")+
+    geom_line(data = testData,aes(x = pos, y = Close),color = "blue")
+```
+
+Если увеличить тестовые данные и уменьшить тренировочные до соотношения 1:1
+
+```{r}
+trainData <- d %>%
+    select(1:8) %>%
+    slice(1:(2*nrow(.) %/% 4))
+
+testData <-  d %>%
+    select(1:8) %>%
+    slice(((2*nrow(.) %/% 4) + 1):nrow(.))
+```
+
+Новая модель
+
+```{r}
+fit <- lm(Close ~ . - Volume - Date,data = trainData)
+summary(fit)
+```
+
+```{r}
+predicted <- predict(fit,newdata = testData)
+predicted <- as_tibble(predicted)
+predicted$pos <- 1:nrow(predicted)
+testData$pos <- 1:nrow(testData)
+
+ggplot(predicted,aes(x = pos, y = value))+
+    geom_line(color = "red")
+
+ggplot(testData,aes(x = pos, y = Close))+
+    geom_line(color = "blue")
+
+ggplot()+
+    geom_line(data = predicted,aes(x = pos, y = value),color = "red")+
+    geom_line(data = testData,aes(x = pos, y = Close),color = "blue")
+```
+
+По полученным графикам видно, что возможено некоторое переобучение, т.к. график предсказанных значений
+довольно близок к реальному, а шумы не очень сильные.
 
 # №2
 В папке со скриптом на R находится папка Task с дополнительными датасетами. Загрузим второй датасет и
@@ -132,76 +170,130 @@ ggplot(d,aes(X1,X2, color = X1))+
 
 # №3
 
+Загрузка данных
+
 ```{r, message=FALSE}
 d <- read_csv("./Task/global_co2.csv")
 ```
 
-Попытаемся построить регрессию от поля "Solid Fuel" для "Per Capita"
+Будем предсказать параметр 'Per capita'
+Т.к. в этом параметре есть NA, то необходимо сначала отчистить данные 
 
 ```{r}
-fit <- lm(d$'Per Capita' ~ d$'Solid Fuel',data = d)
-summary(fit)
-ggplot(d,aes(x = d$'Solid Fuel', y = d$'Per Capita', color = d$'Solid Fuel'))+
-    geom_point()+
-    labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
-    scale_color_gradient(low = "#570777", high = "#c60590")+
-    geom_smooth(method = lm,formula = y ~ x)
+clean <- function(d, replace = 0){
+    d %>% mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),replace,.))
+}
+
+d <- clean(d,0)
 ```
 
-Но в этой модели есть много(200) пропущенных значений "Per Capita". Из простых логических соображений
-поле Per Capita не может быть отрицательным, так что можно попробовать заменить все неизвестные значение на 0
+Разделение данных на два множества: для обучения и для тестирования
+
 ```{r}
-newData <- d  %>%
-    mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),0,.))
-fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
-summary(fit)
-ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
-    geom_point()+
-    labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
-    scale_color_gradient(low = "#570777", high = "#c60590")+
-    geom_smooth(method = lm,formula = y ~ x)
+trainData <- d %>%
+    slice(1:(3*nrow(d) %/% 4))
+testData <- d %>%
+    slice(((3*nrow(d) %/% 4)+1):nrow(d))
 ```
 
-Получилось какая то ужасная кривая, которая очень плохо, теперь попробуем заменять на средние значение от 
-известных величин
-
 ```{r}
-newData <- d  %>%
-    mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),mean(.,na.rm = T),.))
-fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
+fit <- lm(`Per Capita` ~ .,data = d)
 summary(fit)
-ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
-    geom_point()+
-    labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
-    scale_color_gradient(low = "#570777", high = "#c60590")+
-    geom_smooth(method = lm,formula = y ~ x)
 ```
 
-Можно вместо неизвестных значений выставлять значения, который точно не могут подходить,например, -1
+Видно, что в данной модели важдый только два параметра Year и смещение.
+Для полученной модели построим предсказанные зачения.
 
 ```{r}
-newData <- d  %>%
-    mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),-1,.))
-fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
-summary(fit)
-ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
-    geom_point()+
-    labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
-    scale_color_gradient(low = "#570777", high = "#c60590")+
-    geom_smooth(method = lm,formula = y ~ x)
+predict <- as_tibble(predict(fit,newdata = testData))
+predict$pos <- 1:nrow(predict)
+testData$pos <- 1:nrow(testData)
+ggplot()+
+    geom_line(data = predict,aes(x = pos , y = value),color = "red")+
+    geom_line(data = testData,aes(x = pos, y = `Per Capita`), color = "blue")
 ```
 
-Полученные модели с заменой на какое-нибудь значение получаются не такие уж и эффективные.
-Но в целом можно начать перебирать значения и выбрать наиболее удобное(почему бы и не 0.5?)
+В данной модели переобучения не видно.
+Так выглядит модель если изменить соотношение данных для обучения и тестирования как 1:1
 
 ```{r}
-newData <- d  %>%
-    mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),0.5,.))
-fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
+trainData <- d %>%
+    slice(1:(nrow(d) %/% 2))
+testData <- d %>%
+    slice(((nrow(d) %/% 2)+1):nrow(d))
+```
+
+```{r}
+fit <- lm(`Per Capita` ~ .,data = d)
 summary(fit)
-ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
-    geom_point()+
-    labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
-    scale_color_gradient(low = "#570777", high = "#c60590")+
-    geom_smooth(method = lm,formula = y ~ x)
+```
+
+```{r}
+predict <- as_tibble(predict(fit,newdata = testData))
+predict$pos <- 1:nrow(predict)
+testData$pos <- 1:nrow(testData)
+
+ggplot()+
+    geom_line(data = predict,aes(x = pos , y = value),color = "red")+
+    geom_line(data = testData,aes(x = pos, y = `Per Capita`), color = "blue")
+```
+
+
+Так же можно заполнять неизвестные значения другим способом.
+Например средним от известных значений
+
+```{r, message=FALSE}
+d <- read_csv("./Task/global_co2.csv")
+```
+
+```{r}
+d <- clean(d,mean(d$`Per Capita`,na.rm = T))
+```
+
+Разделение данных на два множества: для обучения и для тестирования
+
+```{r}
+trainData <- d %>%
+    slice(1:(3*nrow(d) %/% 4))
+testData <- d %>%
+    slice(((3*nrow(d) %/% 4)+1):nrow(d))
+```
+
+```{r}
+fit <- lm(`Per Capita` ~ .,data = d)
+summary(fit)
+```
+
+```{r}
+predict <- as_tibble(predict(fit,newdata = testData))
+predict$pos <- 1:nrow(predict)
+testData$pos <- 1:nrow(testData)
+ggplot()+
+    geom_line(data = predict,aes(x = pos , y = value),color = "red")+
+    geom_line(data = testData,aes(x = pos, y = `Per Capita`), color = "blue")
+```
+
+В данной модели переобучения не видно.
+Так выглядит модель если изменить соотношение данных для обучения и тестирования как 1:1
+
+```{r}
+trainData <- d %>%
+    slice(1:(nrow(d) %/% 2))
+testData <- d %>%
+    slice(((nrow(d) %/% 2)+1):nrow(d))
+```
+
+```{r}
+fit <- lm(`Per Capita` ~ .,data = d)
+summary(fit)
+```
+
+```{r}
+predict <- as_tibble(predict(fit,newdata = testData))
+predict$pos <- 1:nrow(predict)
+testData$pos <- 1:nrow(testData)
+
+ggplot()+
+    geom_line(data = predict,aes(x = pos , y = value),color = "red")+
+    geom_line(data = testData,aes(x = pos, y = `Per Capita`), color = "blue")
 ```
