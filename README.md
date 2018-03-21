@@ -1,4 +1,4 @@
-Загрузка необходимых пакетов:
+Загрузка необходимых пакетов
 
     require(tidyverse)
     require(Quandl)
@@ -6,108 +6,208 @@
 №1
 ==
 
-Загрузим необходимые данные:
+Загрузка данных
 
     d <- as_tibble(Quandl("WIKI/GOOGL"))
+    d <- d %>% arrange(Close)
 
-Построим простую зависимость Close от Open:
+Регрессия для Close от всех возможных параметров(возьмем первые 75%
+записей)
 
-    ggplot(d,aes(x = Open, y = Close,color = Open))+
-        geom_point(alpha = 0.5)+
-        scale_colour_gradient(low = "orange", high = "red")
+    trainData <- d %>%
+        select(1:8) %>%
+        slice(1:(9*nrow(.) %/% 10))
 
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-2-1.png)
+    testData <-  d %>%
+        select(1:8) %>%
+        slice(((9*nrow(.) %/% 10) + 1):nrow(.))
 
-Из этого графика можно заметить, что параметр Close сильно коррелирует с
-Open. Построим линейную регрессию и посмотрим на полученные результаты:
-
-    fit <- lm( Close ~ Open ,data = d)
+    fit <- lm(Close ~ . ,data = trainData)
     summary(fit)
 
     ## 
     ## Call:
-    ## lm(formula = Close ~ Open, data = d)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -60.230  -3.890   0.127   4.409  50.937 
-    ## 
-    ## Coefficients:
-    ##              Estimate Std. Error  t value Pr(>|t|)    
-    ## (Intercept) 0.1706919  0.3798327    0.449    0.653    
-    ## Open        0.9993642  0.0005964 1675.679   <2e-16 ***
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 7.876 on 3414 degrees of freedom
-    ## Multiple R-squared:  0.9988, Adjusted R-squared:  0.9988 
-    ## F-statistic: 2.808e+06 on 1 and 3414 DF,  p-value: < 2.2e-16
-
-Видно, что Close и Open соотносятся почти как 1:1. На графике это будет
-ещё более заметно.
-
-    ggplot(d,aes(x = Open, y = Close,color = Open))+
-        geom_point(alpha = 0.5)+
-        scale_colour_gradient(low = "orange", high = "red")+
-        geom_smooth(method = "lm", formula = y ~ x)
-
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-4-1.png)
-
-Полученная модель получилась довольно слабой, т.к. очевидно, что цены на
-бирже редко когда сильно изменяются. Кроме того, можно построить график цены во
-время закрытия торгов:
-
-    cl <- d %>%
-        select(Close) %>%
-        arrange(Close)
-    cl$days <- c(1:nrow(cl))
-    ggplot(cl,aes(x = days, y = Close, color = Close))+
-        geom_point(alpha = 0.2)+
-        scale_color_gradient(low = "orange", high = "red")
-
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-5-1.png)
-
-По этим данным также можно построить линейную регрессию. Будем считать,
-что days - число дней с момента, когда акции впервые повились на торгах.
-
-    fit <- lm(Close ~ days,data = cl)
-    summary(fit)
-
-    ## 
-    ## Call:
-    ## lm(formula = Close ~ days, data = cl)
+    ## lm(formula = Close ~ ., data = trainData)
     ## 
     ## Residuals:
     ##      Min       1Q   Median       3Q      Max 
-    ## -118.483  -50.729   -4.346   41.583  248.113 
+    ## -20.4786  -1.8238   0.0019   1.7915  20.9886 
     ## 
-    ## Coefficients:
-    ##              Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept) 2.182e+02  2.078e+00   105.0   <2e-16 ***
-    ## days        2.207e-01  1.054e-03   209.5   <2e-16 ***
+    ## Coefficients: (1 not defined because of singularities)
+    ##                 Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)   -2.466e+00  1.099e+00  -2.244   0.0249 *  
+    ## Date           1.692e-04  8.318e-05   2.034   0.0420 *  
+    ## Open          -5.468e-01  1.402e-02 -38.993   <2e-16 ***
+    ## High           7.669e-01  1.371e-02  55.939   <2e-16 ***
+    ## Low            7.800e-01  1.168e-02  66.808   <2e-16 ***
+    ## Volume         1.703e-08  1.038e-08   1.640   0.1010    
+    ## `Ex-Dividend` -1.399e-02  5.763e-03  -2.427   0.0153 *  
+    ## `Split Ratio`         NA         NA      NA       NA    
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 60.73 on 3414 degrees of freedom
-    ## Multiple R-squared:  0.9278, Adjusted R-squared:  0.9278 
-    ## F-statistic: 4.388e+04 on 1 and 3414 DF,  p-value: < 2.2e-16
+    ## Residual standard error: 3.268 on 3062 degrees of freedom
+    ## Multiple R-squared:  0.9997, Adjusted R-squared:  0.9997 
+    ## F-statistic: 1.464e+06 on 6 and 3062 DF,  p-value: < 2.2e-16
 
-    ggplot(cl,aes(x = days, y = Close, color = Close))+
-        geom_point(alpha = 0.2)+
-        scale_color_gradient(low = "orange", high = "red")+
-        geom_smooth(method = "lm", formula = y ~ x)
+Для параметра Close статистически значимо влияют все параметры кроме
+Volume, так что можно убрать его
+
+    fit <- lm(Close ~ . - Volume,data = trainData)
+    summary(fit)
+
+    ## 
+    ## Call:
+    ## lm(formula = Close ~ . - Volume, data = trainData)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -20.5042  -1.7973  -0.0075   1.7696  20.6786 
+    ## 
+    ## Coefficients: (1 not defined because of singularities)
+    ##                 Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)   -1.390e+00  8.822e-01  -1.576   0.1151    
+    ## Date           1.066e-04  7.392e-05   1.442   0.1494    
+    ## Open          -5.468e-01  1.403e-02 -38.982   <2e-16 ***
+    ## High           7.737e-01  1.308e-02  59.144   <2e-16 ***
+    ## Low            7.731e-01  1.090e-02  70.937   <2e-16 ***
+    ## `Ex-Dividend` -1.411e-02  5.764e-03  -2.448   0.0144 *  
+    ## `Split Ratio`         NA         NA      NA       NA    
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 3.269 on 3063 degrees of freedom
+    ## Multiple R-squared:  0.9997, Adjusted R-squared:  0.9997 
+    ## F-statistic: 1.755e+06 on 5 and 3063 DF,  p-value: < 2.2e-16
+
+Без Volume не влияет параметр Date
+
+    fit <- lm(Close ~ . - Volume - Date,data = trainData)
+    summary(fit)
+
+    ## 
+    ## Call:
+    ## lm(formula = Close ~ . - Volume - Date, data = trainData)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -20.5690  -1.7957  -0.0178   1.7844  20.7299 
+    ## 
+    ## Coefficients: (1 not defined because of singularities)
+    ##                Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)   -0.153848   0.206821  -0.744   0.4570    
+    ## Open          -0.546706   0.014030 -38.966   <2e-16 ***
+    ## High           0.773130   0.013078  59.116   <2e-16 ***
+    ## Low            0.774175   0.010876  71.180   <2e-16 ***
+    ## `Ex-Dividend` -0.013898   0.005763  -2.412   0.0159 *  
+    ## `Split Ratio`        NA         NA      NA       NA    
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 3.27 on 3064 degrees of freedom
+    ## Multiple R-squared:  0.9997, Adjusted R-squared:  0.9997 
+    ## F-statistic: 2.193e+06 on 4 and 3064 DF,  p-value: < 2.2e-16
+
+Получилась некоторая модель в которой каждый параметр влияет на Close
+
+    predicted <- predict(fit,newdata = testData)
+
+    ## Warning in predict.lm(fit, newdata = testData): prediction from a rank-
+    ## deficient fit may be misleading
+
+    predicted <- as_tibble(predicted)
+    predicted$pos <- 1:nrow(predicted)
+    testData$pos <- 1:nrow(testData)
+
+    ggplot(predicted,aes(x = pos, y = value))+
+        geom_line(color = "red")
 
 ![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-6-1.png)
 
-В целом, эта модель будет полезнее, т.к. она может предсказать цену на
-будущее, в то время как самая первая модель не имела особого смысла,
-т.к. показывала, что цена открытия примерно равна цене закрытия.
+    ggplot(testData,aes(x = pos, y = Close))+
+        geom_line(color = "blue")
+
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-6-2.png)
+
+    ggplot()+
+        geom_line(data = predicted,aes(x = pos, y = value),color = "red")+
+        geom_line(data = testData,aes(x = pos, y = Close),color = "blue")
+
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-6-3.png)
+
+Если увеличить тестовые данные и уменьшить тренировочные до соотношения
+1:1
+
+    trainData <- d %>%
+        select(1:8) %>%
+        slice(1:(2*nrow(.) %/% 4))
+
+    testData <-  d %>%
+        select(1:8) %>%
+        slice(((2*nrow(.) %/% 4) + 1):nrow(.))
+
+Новая модель
+
+    fit <- lm(Close ~ . - Volume - Date,data = trainData)
+    summary(fit)
+
+    ## 
+    ## Call:
+    ## lm(formula = Close ~ . - Volume - Date, data = trainData)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -21.4983  -1.6551  -0.0265   1.7391  20.0160 
+    ## 
+    ## Coefficients: (2 not defined because of singularities)
+    ##               Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)   -0.15284    0.29411   -0.52    0.603    
+    ## Open          -0.56711    0.01899  -29.86   <2e-16 ***
+    ## High           0.80909    0.01722   47.00   <2e-16 ***
+    ## Low            0.75784    0.01500   50.52   <2e-16 ***
+    ## `Ex-Dividend`       NA         NA      NA       NA    
+    ## `Split Ratio`       NA         NA      NA       NA    
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 3.133 on 1704 degrees of freedom
+    ## Multiple R-squared:  0.9993, Adjusted R-squared:  0.9993 
+    ## F-statistic: 8.085e+05 on 3 and 1704 DF,  p-value: < 2.2e-16
+
+    predicted <- predict(fit,newdata = testData)
+
+    ## Warning in predict.lm(fit, newdata = testData): prediction from a rank-
+    ## deficient fit may be misleading
+
+    predicted <- as_tibble(predicted)
+    predicted$pos <- 1:nrow(predicted)
+    testData$pos <- 1:nrow(testData)
+
+    ggplot(predicted,aes(x = pos, y = value))+
+        geom_line(color = "red")
+
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-9-1.png)
+
+    ggplot(testData,aes(x = pos, y = Close))+
+        geom_line(color = "blue")
+
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-9-2.png)
+
+    ggplot()+
+        geom_line(data = predicted,aes(x = pos, y = value),color = "red")+
+        geom_line(data = testData,aes(x = pos, y = Close),color = "blue")
+
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-9-3.png)
+
+По полученным графикам видно, что возможено некоторое переобучение, т.к.
+график предсказанных значений довольно близок к реальному, а шумы не
+очень сильные.
 
 №2
 ==
 
 В папке со скриптом на R находится папка Task с дополнительными
-датасетами. Загрузим второй датасет и посмотрим график зависимости:
+датасетами. Загрузим второй датасет и посмотрим график зависмости
 
     d <- read_csv("./Task/challenge_dataset.txt",col_names = F)
 
@@ -126,9 +226,9 @@ Open. Построим линейную регрессию и посмотрим
         geom_point()+
         scale_color_gradient(low = "#0a5fd6",high = "#a900f2")
 
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-9-1.png)
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-12-1.png)
 
-Для этих данных построим простую линейную регрессию x2 от x1:
+Для этих данных построим простую линейную регрессию x2 от x1
 
     fit <- lm(X2 ~ X1, data = d)
     summary(fit)
@@ -157,13 +257,13 @@ Open. Построим линейную регрессию и посмотрим
         scale_color_gradient(low = "#0a5fd6",high = "#a900f2")+
         geom_smooth(method = lm,formula = y ~ x)
 
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-10-1.png)
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-13-1.png)
 
-Полученная модель может хорошо предсказать данные, для которых x1 &gt;
+Полученная модель может хорошо предсказать данные для которых x1 &gt;
 10, но в отрезке от 5 до 10 получился слишком большой разброс.
 
-Т.к. зависимость x2 от x1 очень напоминает график функции квадратного корня и
-логарифма, построим регрессию для этих двух преобразований:
+Т.к. зависимость очень x2 от x2 напоминает график функции корня и
+логарифма, построим регрессию для этих двух преобразований
 
     fit <- lm(X2 ~ sqrt(X1), data = d)
     summary(fit)
@@ -192,7 +292,7 @@ Open. Построим линейную регрессию и посмотрим
         scale_color_gradient(low = "#0a5fd6",high = "#a900f2")+
         geom_smooth(method = lm,formula = y ~ sqrt(x))
 
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-11-1.png)
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-14-1.png)
 
     fit <- lm(X2 ~ log(X1), data = d)
     summary(fit)
@@ -221,11 +321,11 @@ Open. Построим линейную регрессию и посмотрим
         scale_color_gradient(low = "#0a5fd6",high = "#a900f2")+
         geom_smooth(method = lm, formula = y ~ log(x))
 
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-12-1.png)
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-15-1.png)
 
 Но все равно эти модели не очень хорошо описывают данные, можно и
-получше. Вот так для примера будет строиться модель (не регрессия) для
-этих данных по умолчанию (функция loess - LOcal regrESSion):
+получше. Вот так для примера будет строиться модель(не регрессия) для
+этих данных по умолчанию(функция loess - LOcal regrESSion)
 
     ggplot(d,aes(X1,X2, color = X1))+
         geom_point()+
@@ -234,7 +334,7 @@ Open. Построим линейную регрессию и посмотрим
 
     ## `geom_smooth()` using method = 'loess'
 
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-13-1.png)
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-16-1.png)
 
 У этой модели большие доверительные интервалы и покрывает она данные
 лучше предыдущих.
@@ -242,184 +342,205 @@ Open. Построим линейную регрессию и посмотрим
 №3
 ==
 
+Загрузка данных
+
     d <- read_csv("./Task/global_co2.csv")
 
-Попытаемся построить регрессию от поля “Solid Fuel” для “Per Capita”:
+Будем предсказать параметр ‘Per capita’ Т.к. в этом параметре есть NA,
+то необходимо сначала отчистить данные
 
-    fit <- lm(d$'Per Capita' ~ d$'Solid Fuel',data = d)
+    clean <- function(d, replace = 0){
+        d %>% mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),replace,.))
+    }
+
+    d <- clean(d,0)
+
+Разделение данных на два множества: для обучения и для тестирования
+
+    trainData <- d %>%
+        slice(1:(3*nrow(d) %/% 4))
+    testData <- d %>%
+        slice(((3*nrow(d) %/% 4)+1):nrow(d))
+
+    fit <- lm(`Per Capita` ~ .,data = d)
     summary(fit)
 
     ## 
     ## Call:
-    ## lm(formula = d$"Per Capita" ~ d$"Solid Fuel", data = d)
+    ## lm(formula = `Per Capita` ~ ., data = d)
     ## 
     ## Residuals:
     ##      Min       1Q   Median       3Q      Max 
-    ## -0.22339 -0.06968 -0.01502  0.03983  0.21281 
+    ## -0.23354 -0.04020  0.00289  0.02534  0.28754 
     ## 
     ## Coefficients:
-    ##                 Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)    6.460e-01  4.341e-02  14.883  < 2e-16 ***
-    ## d$"Solid Fuel" 2.031e-04  2.041e-05   9.954 3.05e-14 ***
+    ##                 Estimate Std. Error t value Pr(>|t|)   
+    ## (Intercept)    1.1337099  0.3776756   3.002  0.00295 **
+    ## Year          -0.0006362  0.0002083  -3.054  0.00250 **
+    ## Total          0.0049847  0.0109937   0.453  0.65064   
+    ## `Gas Fuel`    -0.0028765  0.0109839  -0.262  0.79363   
+    ## `Liquid Fuel` -0.0054650  0.0110010  -0.497  0.61978   
+    ## `Solid Fuel`  -0.0047295  0.0109934  -0.430  0.66741   
+    ## Cement        -0.0105909  0.0110457  -0.959  0.33856   
+    ## `Gas Flaring`  0.0085927  0.0109775   0.783  0.43451   
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 0.11 on 59 degrees of freedom
-    ##   (199 observations deleted due to missingness)
-    ## Multiple R-squared:  0.6268, Adjusted R-squared:  0.6205 
-    ## F-statistic: 99.09 on 1 and 59 DF,  p-value: 3.051e-14
+    ## Residual standard error: 0.08635 on 252 degrees of freedom
+    ## Multiple R-squared:  0.9651, Adjusted R-squared:  0.9641 
+    ## F-statistic: 995.8 on 7 and 252 DF,  p-value: < 2.2e-16
 
-    ggplot(d,aes(x = d$'Solid Fuel', y = d$'Per Capita', color = d$'Solid Fuel'))+
-        geom_point()+
-        labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
-        scale_color_gradient(low = "#570777", high = "#c60590")+
-        geom_smooth(method = lm,formula = y ~ x)
+Видно, что в данной модели важдый только два параметра Year и смещение.
+Для полученной модели построим предсказанные зачения.
 
-    ## Warning: Removed 199 rows containing non-finite values (stat_smooth).
+    predict <- as_tibble(predict(fit,newdata = testData))
+    predict$pos <- 1:nrow(predict)
+    testData$pos <- 1:nrow(testData)
+    ggplot()+
+        geom_line(data = predict,aes(x = pos , y = value),color = "red")+
+        geom_line(data = testData,aes(x = pos, y = `Per Capita`), color = "blue")
 
-    ## Warning: Removed 199 rows containing missing values (geom_point).
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-21-1.png)
 
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-15-1.png)
+В данной модели переобучения не видно. Так выглядит модель если изменить
+соотношение данных для обучения и тестирования как 1:1
 
-Но в этой модели есть много (200) пропущенных значений “Per Capita”. Из
-простых логических соображений поле Per Capita не может быть
-отрицательным, так что можно попробовать заменить все неизвестные
-значения на 0.
+    trainData <- d %>%
+        slice(1:(nrow(d) %/% 2))
+    testData <- d %>%
+        slice(((nrow(d) %/% 2)+1):nrow(d))
 
-    newData <- d  %>%
-        mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),0,.))
-    fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
+    fit <- lm(`Per Capita` ~ .,data = d)
     summary(fit)
 
     ## 
     ## Call:
-    ## lm(formula = newData$"Per Capita" ~ newData$"Solid Fuel", data = newData)
+    ## lm(formula = `Per Capita` ~ ., data = d)
     ## 
     ## Residuals:
     ##      Min       1Q   Median       3Q      Max 
-    ## -0.44402 -0.09863  0.05888  0.06841  0.50572 
+    ## -0.23354 -0.04020  0.00289  0.02534  0.28754 
     ## 
     ## Coefficients:
-    ##                        Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)          -7.018e-02  1.589e-02  -4.415 1.48e-05 ***
-    ## newData$"Solid Fuel"  4.709e-04  1.447e-05  32.538  < 2e-16 ***
+    ##                 Estimate Std. Error t value Pr(>|t|)   
+    ## (Intercept)    1.1337099  0.3776756   3.002  0.00295 **
+    ## Year          -0.0006362  0.0002083  -3.054  0.00250 **
+    ## Total          0.0049847  0.0109937   0.453  0.65064   
+    ## `Gas Fuel`    -0.0028765  0.0109839  -0.262  0.79363   
+    ## `Liquid Fuel` -0.0054650  0.0110010  -0.497  0.61978   
+    ## `Solid Fuel`  -0.0047295  0.0109934  -0.430  0.66741   
+    ## Cement        -0.0105909  0.0110457  -0.959  0.33856   
+    ## `Gas Flaring`  0.0085927  0.0109775   0.783  0.43451   
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 0.2022 on 258 degrees of freedom
-    ## Multiple R-squared:  0.8041, Adjusted R-squared:  0.8033 
-    ## F-statistic:  1059 on 1 and 258 DF,  p-value: < 2.2e-16
+    ## Residual standard error: 0.08635 on 252 degrees of freedom
+    ## Multiple R-squared:  0.9651, Adjusted R-squared:  0.9641 
+    ## F-statistic: 995.8 on 7 and 252 DF,  p-value: < 2.2e-16
 
-    ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
-        geom_point()+
-        labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
-        scale_color_gradient(low = "#570777", high = "#c60590")+
-        geom_smooth(method = lm,formula = y ~ x)
+    predict <- as_tibble(predict(fit,newdata = testData))
+    predict$pos <- 1:nrow(predict)
+    testData$pos <- 1:nrow(testData)
 
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-16-1.png)
+    ggplot()+
+        geom_line(data = predict,aes(x = pos , y = value),color = "red")+
+        geom_line(data = testData,aes(x = pos, y = `Per Capita`), color = "blue")
 
-Получилась какая-то ужасная кривая, которая очень плохо описывает наши данные. Теперь
-попробуем заменить неизвестные на средние значения от известных величин:
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-24-1.png)
 
-    newData <- d  %>%
-        mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),mean(.,na.rm = T),.))
-    fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
+Так же можно заполнять неизвестные значения другим способом. Например
+средним от известных значений
+
+    d <- read_csv("./Task/global_co2.csv")
+
+    d <- clean(d,mean(d$`Per Capita`,na.rm = T))
+
+Разделение данных на два множества: для обучения и для тестирования
+
+    trainData <- d %>%
+        slice(1:(3*nrow(d) %/% 4))
+    testData <- d %>%
+        slice(((3*nrow(d) %/% 4)+1):nrow(d))
+
+    fit <- lm(`Per Capita` ~ .,data = d)
     summary(fit)
 
     ## 
     ## Call:
-    ## lm(formula = newData$"Per Capita" ~ newData$"Solid Fuel", data = newData)
+    ## lm(formula = `Per Capita` ~ ., data = d)
     ## 
     ## Residuals:
     ##      Min       1Q   Median       3Q      Max 
-    ## -0.42672 -0.00005  0.01865  0.02025  0.17944 
+    ## -0.31886 -0.01070 -0.00461  0.02926  0.14335 
     ## 
     ## Coefficients:
-    ##                       Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)          1.034e+00  6.446e-03 160.460  < 2e-16 ***
-    ## newData$"Solid Fuel" 3.025e-05  5.869e-06   5.154 5.08e-07 ***
+    ##                 Estimate Std. Error t value Pr(>|t|)   
+    ## (Intercept)    0.7648247  0.2867835   2.667  0.00815 **
+    ## Year           0.0001668  0.0001582   1.055  0.29265   
+    ## Total         -0.0011734  0.0083479  -0.141  0.88833   
+    ## `Gas Fuel`    -0.0001460  0.0083405  -0.017  0.98605   
+    ## `Liquid Fuel`  0.0017429  0.0083535   0.209  0.83489   
+    ## `Solid Fuel`   0.0010040  0.0083477   0.120  0.90436   
+    ## Cement         0.0048834  0.0083874   0.582  0.56093   
+    ## `Gas Flaring` -0.0045245  0.0083357  -0.543  0.58776   
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 0.08202 on 258 degrees of freedom
-    ## Multiple R-squared:  0.09334,    Adjusted R-squared:  0.08982 
-    ## F-statistic: 26.56 on 1 and 258 DF,  p-value: 5.083e-07
+    ## Residual standard error: 0.06557 on 252 degrees of freedom
+    ## Multiple R-squared:  0.4341, Adjusted R-squared:  0.4184 
+    ## F-statistic: 27.61 on 7 and 252 DF,  p-value: < 2.2e-16
 
-    ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
-        geom_point()+
-        labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
-        scale_color_gradient(low = "#570777", high = "#c60590")+
-        geom_smooth(method = lm,formula = y ~ x)
+    predict <- as_tibble(predict(fit,newdata = testData))
+    predict$pos <- 1:nrow(predict)
+    testData$pos <- 1:nrow(testData)
+    ggplot()+
+        geom_line(data = predict,aes(x = pos , y = value),color = "red")+
+        geom_line(data = testData,aes(x = pos, y = `Per Capita`), color = "blue")
 
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-17-1.png)
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-29-1.png)
 
-Можно вместо неизвестных значений выставлять значения, которые точно не
-могут подходить, например, значение -1.
+В данной модели переобучения не видно. Так выглядит модель если изменить
+соотношение данных для обучения и тестирования как 1:1
 
-    newData <- d  %>%
-        mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),-1,.))
-    fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
+    trainData <- d %>%
+        slice(1:(nrow(d) %/% 2))
+    testData <- d %>%
+        slice(((nrow(d) %/% 2)+1):nrow(d))
+
+    fit <- lm(`Per Capita` ~ .,data = d)
     summary(fit)
 
     ## 
     ## Call:
-    ## lm(formula = newData$"Per Capita" ~ newData$"Solid Fuel", data = newData)
+    ## lm(formula = `Per Capita` ~ ., data = d)
     ## 
     ## Residuals:
     ##      Min       1Q   Median       3Q      Max 
-    ## -0.96675 -0.20121  0.09604  0.11470  0.89244 
+    ## -0.31886 -0.01070 -0.00461  0.02926  0.14335 
     ## 
     ## Coefficients:
-    ##                        Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)          -1.117e+00  3.275e-02  -34.12   <2e-16 ***
-    ## newData$"Solid Fuel"  8.886e-04  2.982e-05   29.80   <2e-16 ***
+    ##                 Estimate Std. Error t value Pr(>|t|)   
+    ## (Intercept)    0.7648247  0.2867835   2.667  0.00815 **
+    ## Year           0.0001668  0.0001582   1.055  0.29265   
+    ## Total         -0.0011734  0.0083479  -0.141  0.88833   
+    ## `Gas Fuel`    -0.0001460  0.0083405  -0.017  0.98605   
+    ## `Liquid Fuel`  0.0017429  0.0083535   0.209  0.83489   
+    ## `Solid Fuel`   0.0010040  0.0083477   0.120  0.90436   
+    ## Cement         0.0048834  0.0083874   0.582  0.56093   
+    ## `Gas Flaring` -0.0045245  0.0083357  -0.543  0.58776   
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 0.4168 on 258 degrees of freedom
-    ## Multiple R-squared:  0.7749, Adjusted R-squared:  0.774 
-    ## F-statistic: 887.9 on 1 and 258 DF,  p-value: < 2.2e-16
+    ## Residual standard error: 0.06557 on 252 degrees of freedom
+    ## Multiple R-squared:  0.4341, Adjusted R-squared:  0.4184 
+    ## F-statistic: 27.61 on 7 and 252 DF,  p-value: < 2.2e-16
 
-    ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
-        geom_point()+
-        labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
-        scale_color_gradient(low = "#570777", high = "#c60590")+
-        geom_smooth(method = lm,formula = y ~ x)
+    predict <- as_tibble(predict(fit,newdata = testData))
+    predict$pos <- 1:nrow(predict)
+    testData$pos <- 1:nrow(testData)
 
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-18-1.png)
+    ggplot()+
+        geom_line(data = predict,aes(x = pos , y = value),color = "red")+
+        geom_line(data = testData,aes(x = pos, y = `Per Capita`), color = "blue")
 
-Полученные модели с заменой на какое-нибудь значение получаются не такие
-уж и эффективные. Но в целом можно начать перебирать значения и выбрать
-наиболее удобное (почему бы и не 0.5?)
-
-    newData <- d  %>%
-        mutate_if(~ any(is.na(.)),~ ifelse(is.na(.),0.5,.))
-    fit <- lm(newData$'Per Capita' ~ newData$'Solid Fuel',data = newData)
-    summary(fit)
-
-    ## 
-    ## Call:
-    ## lm(formula = newData$"Per Capita" ~ newData$"Solid Fuel", data = newData)
-    ## 
-    ## Residuals:
-    ##      Min       1Q   Median       3Q      Max 
-    ## -0.23952 -0.05211  0.03532  0.04527  0.31236 
-    ## 
-    ## Coefficients:
-    ##                       Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)          4.534e-01  8.298e-03   54.64   <2e-16 ***
-    ## newData$"Solid Fuel" 2.620e-04  7.556e-06   34.67   <2e-16 ***
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 0.1056 on 258 degrees of freedom
-    ## Multiple R-squared:  0.8233, Adjusted R-squared:  0.8226 
-    ## F-statistic:  1202 on 1 and 258 DF,  p-value: < 2.2e-16
-
-    ggplot(d,aes(x = newData$'Solid Fuel', y = newData$'Per Capita', color = newData$'Solid Fuel'))+
-        geom_point()+
-        labs(x = "Solid Fuel", y = "Per Capita", color = "Solid Fuel")+
-        scale_color_gradient(low = "#570777", high = "#c60590")+
-        geom_smooth(method = lm,formula = y ~ x)
-
-![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-19-1.png)
+![](report%5Bexported%5D_files/figure-markdown_strict/unnamed-chunk-32-1.png)
